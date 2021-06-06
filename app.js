@@ -9,6 +9,7 @@ const catchAysnc=require('./utils/catchAsync');
 const ExpressError=require("./utils/ExpressError");
 const joi=require('joi');
 const Review=require('./model/review')
+const { campgroundSchema, reviewSchema } = require('./schemas.js');
 
 mongoose.connect('mongodb://localhost:27017/yelp-camp',{
     useNewUrlParser: true,
@@ -29,6 +30,26 @@ app.set('views',path.join(__dirname,'views'))
 
 app.use(express.urlencoded({extended:true}))
 app.use(methodOverride('_method'))
+
+const validateCampground = (req, res, next) => {
+    const { error } = campgroundSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',')
+        throw new ExpressError(msg, 400)
+    } else {
+        next();
+    }
+}
+const validateReview = (req, res, next) => {
+    const { error } = reviewSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',')
+        throw new ExpressError(msg, 400)
+    } else {
+        next();
+    }
+}
+
 
 app.get('/',(req,res)=>{
     res.render('home')
@@ -60,7 +81,7 @@ app.put('/campgrounds/:id',catchAysnc( async(req,res)=>{
 })
 )
 
-app.post('/campgrounds',catchAysnc(async(req,res)=>{
+app.post('/campgrounds',validateCampground,catchAysnc(async(req,res)=>{
     if (!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
     const campground = new Campground(req.body.campground);
     await campground.save();
@@ -68,16 +89,16 @@ app.post('/campgrounds',catchAysnc(async(req,res)=>{
 })
 )
 
-app.delete('/campgrounds/:id',async(req,res)=>{
+app.delete('/campgrounds/:id',validateCampground,async(req,res)=>{
     const{id}=req.params;
     await Campground.findByIdAndDelete(id);
     res.redirect('/campgrounds');
 })
 
-app.post('/campgrounds/:id/reviews',catchAysnc(async(req,res)=>{
+app.post('/campgrounds/:id/reviews',validateReview,catchAysnc(async(req,res)=>{
     const campground= await Campground.findById(req.params.id);
     const review = new Review(req.body.review);
-    campground.review.push(review);
+    campground.reviews.push(review);
     await review.save();
     await campground.save();
     res.redirect(`/campgrounds/${campground._id}`)
