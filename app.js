@@ -10,6 +10,7 @@ const ExpressError=require("./utils/ExpressError");
 const joi=require('joi');
 const Review=require('./model/review')
 const { campgroundSchema, reviewSchema } = require('./schemas.js');
+const campground = require('./model/campground');
 
 mongoose.connect('mongodb://localhost:27017/yelp-camp',{
     useNewUrlParser: true,
@@ -89,7 +90,7 @@ app.post('/campgrounds',validateCampground,catchAysnc(async(req,res)=>{
 })
 )
 
-app.delete('/campgrounds/:id',validateCampground,async(req,res)=>{
+app.delete('/campgrounds/:id',async(req,res)=>{
     const{id}=req.params;
     await Campground.findByIdAndDelete(id);
     res.redirect('/campgrounds');
@@ -105,6 +106,15 @@ app.post('/campgrounds/:id/reviews',validateReview,catchAysnc(async(req,res)=>{
     res.redirect(`/campgrounds/${campground._id}`)
 
 }))
+
+app.delete('/campgrounds/:id/reviews/:reviewId',catchAysnc(async(req,res)=>{
+    const{id,reviewId}= req.params;
+    await campground.findByIdAndUpdate(id,{$pull:{reviews:reviewId}});
+    await Review.findByIdAndDelete(reviewId)
+    res.redirect(`/campgrounds/${id}`)
+
+}))
+
 
 app.all("*",(req,res,next)=>{
     next(new ExpressError('page not found',404))
